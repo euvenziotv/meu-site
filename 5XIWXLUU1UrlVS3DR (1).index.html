@@ -1,0 +1,573 @@
+<html><head><base href="/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StreamFlix - TV Ao Vivo</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+    :root {
+        --primary-color: #6c5ce7;
+        --secondary-color: #a55eea;
+        --accent-color: #fd79a8;
+        --background-dark: #0f0f1a;
+        --card-bg: #1a1a2e;
+    }
+
+    body {
+        background: var(--background-dark);
+        color: #fff;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+    }
+
+    .navbar {
+        background: rgba(26, 26, 46, 0.98);
+        backdrop-filter: blur(10px);
+        padding: 1rem 2rem;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.2);
+    }
+
+    .navbar-brand {
+        color: var(--primary-color);
+        font-size: 1.8rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+
+    .player-container {
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 25px;
+        background: rgba(26, 32, 44, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 0 40px rgba(108, 92, 231, 0.2);
+        display: none;
+    }
+
+    .search-container {
+        position: relative;
+        margin: 20px 0;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 15px 50px 15px 25px;
+        background: rgba(45, 55, 72, 0.7);
+        border: 2px solid var(--primary-color);
+        border-radius: 30px;
+        color: #fff;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        outline: none;
+        box-shadow: 0 0 15px rgba(108, 92, 231, 0.3);
+        border-color: var(--accent-color);
+    }
+
+    .video-container {
+        position: relative;
+        margin: 20px 0;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    video {
+        width: 100%;
+        border-radius: 15px;
+        background: #000;
+    }
+
+    .channel-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        margin-top: 25px;
+    }
+
+    .channel-card {
+        background: var(--card-bg);
+        border-radius: 15px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(108, 92, 231, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .channel-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, transparent, rgba(108, 92, 231, 0.1));
+        z-index: 1;
+    }
+
+    .channel-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(108, 92, 231, 0.2);
+        border-color: var(--primary-color);
+    }
+
+    .channel-card h3 {
+        color: #fff;
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .channel-card p {
+        color: #a8b2d1;
+        font-size: 0.9rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .channel-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--primary-color);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+    }
+
+    .loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 15, 26, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(5px);
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(108, 92, 231, 0.3);
+        border-top: 5px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .category-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+    }
+
+    .category-tab {
+        padding: 10px 20px;
+        background: rgba(108, 92, 231, 0.1);
+        border: 1px solid var(--primary-color);
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .category-tab:hover {
+        background: var(--primary-color);
+    }
+
+    .category-tab.active {
+        background: var(--primary-color);
+        box-shadow: 0 0 15px rgba(108, 92, 231, 0.3);
+    }
+
+    .access-code-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 15, 26, 0.95);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    }
+
+    .access-code-container {
+        background: var(--card-bg);
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+    }
+
+    .access-code-container h2 {
+        margin-bottom: 20px;
+        color: var(--primary-color);
+    }
+
+    .access-code-container input {
+        width: 100%;
+        padding: 12px;
+        margin: 10px 0;
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        background: rgba(45, 55, 72, 0.7);
+        color: #fff;
+    }
+
+    .access-code-container button {
+        background: var(--primary-color);
+        color: #fff;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .access-code-container button:hover {
+        background: var(--secondary-color);
+    }
+
+    #accessStatus {
+        margin-top: 15px;
+        color: var(--accent-color);
+    }
+
+    #timeRemaining {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: rgba(26, 26, 46, 0.9);
+        padding: 10px 20px;
+        border-radius: 10px;
+        border: 1px solid var(--primary-color);
+        color: #fff;
+        z-index: 1000;
+        font-size: 0.9rem;
+        box-shadow: 0 0 10px rgba(108, 92, 231, 0.2);
+    }
+</style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-tv me-2"></i>
+                StreamFlix
+            </a>
+        </div>
+    </nav>
+
+    <div id="accessCodeOverlay" class="access-code-overlay" style="display: flex;">
+        <div class="access-code-container">
+            <h2>Insira seu código de acesso</h2>
+            <input type="text" id="accessCodeInput" placeholder="Digite seu código de acesso..." maxlength="10">
+            <button id="submitAccessCode">Acessar</button>
+            <div id="accessStatus"></div>
+            <div id="timeRemaining"></div>
+        </div>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="container">
+        <div id="playerContainer" class="player-container">
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Pesquisar canais...">
+                <i class="fas fa-search" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: var(--primary-color);"></i>
+            </div>
+
+            <div class="category-tabs">
+                <div class="category-tab active">Todos</div>
+                <div class="category-tab">Aberto</div>
+                <div class="category-tab">Filmes</div>
+                <div class="category-tab">Esportes</div>
+                <div class="category-tab">Infantil</div>
+                <div class="category-tab">Notícias</div>
+                <div class="category-tab">Documentários</div>
+            </div>
+
+            <div class="video-container">
+                <video id="video" controls></video>
+            </div>
+
+            <div id="channelGrid" class="channel-grid"></div>
+        </div>
+    </div>
+
+<script>
+const validateAccessCodePattern = (code) => {
+    if (code.length < 2) return null;
+    const lastTwoDigits = code.slice(-2);
+    
+    switch (lastTwoDigits) {
+        case '68':
+            return 3 * 60 * 1000; // 3 minutes
+        case '64':
+            return 30 * 24 * 60 * 60 * 1000; // 30 days
+        case '57':
+            return 100 * 24 * 60 * 60 * 1000; // 100 days
+        default:
+            return null;
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    checkAccess();
+    loadChannels();
+});
+
+function checkAccess() {
+    const accessData = JSON.parse(localStorage.getItem('accessData'));
+    const now = new Date().getTime();
+    
+    if (!accessData || now >= accessData.expiryTime) {
+        showAccessCodeOverlay();
+        if (accessData) {
+            document.getElementById('accessStatus').textContent = 'Seu código expirou. Por favor, insira um novo código.';
+            document.getElementById('accessStatus').style.color = '#f44336';
+            document.getElementById('playerContainer').style.display = 'none';
+            localStorage.removeItem('accessData');
+        }
+        return false;
+    }
+
+    updateTimeRemaining(accessData.expiryTime);
+    document.getElementById('playerContainer').style.display = 'block';
+    hideAccessCodeOverlay();
+    return true;
+}
+
+function showAccessCodeOverlay() {
+    document.getElementById('accessCodeOverlay').style.display = 'flex';
+    document.getElementById('playerContainer').style.display = 'none';
+}
+
+function hideAccessCodeOverlay() {
+    document.getElementById('accessCodeOverlay').style.display = 'none';
+    document.getElementById('playerContainer').style.display = 'block';
+}
+
+function validateAccessCode(code) {
+    const usedCodes = JSON.parse(localStorage.getItem('usedCodes') || '[]');
+    const isOwnerCode = code === '2050645';
+    
+    if (!isOwnerCode && usedCodes.includes(code)) {
+        return 'used';
+    }
+
+    const duration = isOwnerCode ? Number.MAX_SAFE_INTEGER : validateAccessCodePattern(code);
+    
+    if (duration || isOwnerCode) {
+        const now = new Date().getTime();
+        const expiryTime = now + duration;
+        const expiryDate = new Date(expiryTime);
+        
+        localStorage.setItem('accessData', JSON.stringify({
+            code: code,
+            expiryTime: expiryTime
+        }));
+        
+        if (!isOwnerCode) {
+            usedCodes.push(code);
+            localStorage.setItem('usedCodes', JSON.stringify(usedCodes));
+        }
+        
+        updateTimeRemaining(expiryTime);
+        document.getElementById('accessStatus').textContent = `Código válido! Expira em: ${expiryDate.toLocaleString()}`;
+        document.getElementById('accessStatus').style.color = '#4CAF50';
+        
+        setTimeout(() => {
+            hideAccessCodeOverlay();
+            document.getElementById('playerContainer').style.display = 'block';
+        }, 1500);
+        
+        return 'valid';
+    }
+    return 'invalid';
+}
+
+function updateTimeRemaining(expiryTime) {
+    const timeRemainingDiv = document.getElementById('timeRemaining');
+    
+    const updateTimer = () => {
+        const now = new Date().getTime();
+        const timeLeft = expiryTime - now;
+        
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            showAccessCodeOverlay();
+            localStorage.removeItem('accessData');
+            return;
+        }
+        
+        const days = Math.floor(timeLeft / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((timeLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        const minutes = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
+        const seconds = Math.floor((timeLeft % (60 * 1000)) / 1000);
+        
+        timeRemainingDiv.textContent = `Tempo restante: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+    };
+    
+    const timer = setInterval(updateTimer, 1000);
+    updateTimer();
+}
+
+document.getElementById('submitAccessCode').addEventListener('click', () => {
+    const code = document.getElementById('accessCodeInput').value.trim();
+    const statusDiv = document.getElementById('accessStatus');
+    
+    const result = validateAccessCode(code);
+    
+    switch (result) {
+        case 'valid':
+            break;
+        case 'used':
+            statusDiv.textContent = 'Este código já foi utilizado! Use um código novo.';
+            statusDiv.style.color = '#f44336';
+            break;
+        case 'invalid':
+            statusDiv.textContent = 'Código inválido!';
+            statusDiv.style.color = '#f44336';
+            break;
+    }
+});
+
+function loadChannels() {
+    const channelGrid = document.getElementById('channelGrid');
+    const channels = [
+        { name: "PREMIER 1", url: "https://new.m3u8.one/pre1/tracks-v1a1/mono.m3u8", type: "Esportes", icon: "futbol" },
+        { name: "PREMIER 2", url: "https://stream.m3u8.one/pre2/tracks-v1a1/mono.m3u8", type: "Esportes", icon: "futbol" },
+        { name: "PREMIER 7", url: "https://new.m3u8.one/pre7/tracks-v1a1/mono.m3u8", type: "Esportes", icon: "futbol" },
+        { name: "Globo SP", url: "https://stream.m3u8.one/globosp/tracks-v1a1/mono.m3u8", type: "Aberto", icon: "tv" },
+        { name: "BAND", url: "https://stream.m3u8.one/band/tracks-v1a1/mono.m3u8", type: "Aberto", icon: "broadcast-tower" },
+        { name: "SBT", url: "https://new.m3u8.one/sbt/tracks-v1a1/mono.m3u8", type: "Aberto", icon: "tv" },
+        { name: "CNN Brasil", url: "https://new.m3u8.one/cnnbrasil/tracks-v1a1/mono.m3u8", type: "Notícias", icon: "newspaper" },
+        { name: "Record", url: "https://video07.logicahost.com.br/portaldatropical/portaldatropical/chunklist_w1786977757.m3u8", type: "Aberto", icon: "tv" },
+        { name: "SporTV", url: "https://new.m3u8.one/sportv/tracks-v1a1/mono.m3u8", type: "Esportes", icon: "running" },
+        { name: "SporTV 2", url: "https://new.m3u8.one/sportv2/tracks-v1a1/mono.m3u8", type: "Esportes", icon: "running" },
+        { name: "SporTV 3", url: "https://new.m3u8.one/sportv3/tracks-v1a1/mono.m3u8", type: "Esportes", icon: "running" },
+        { name: "TV Brasil", url: "https://tvbrasil-stream.ebc.com.br/chunks.m3u8", type: "Aberto", icon: "tv" },
+        { name: "Telecine Action", url: "https://new.m3u8.one/teleaction/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "Telecine Touch", url: "https://new.m3u8.one/teletouch/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "Telecine Premium", url: "https://new.m3u8.one/telepremium/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "Telecine Pipoca", url: "https://new.m3u8.one/telepipoca/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "Telecine Fun", url: "https://new.m3u8.one/telefun/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "Telecine Cult", url: "https://new.m3u8.one/telecult/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "Warner TV", url: "https://new.m3u8.one/warnetv/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "tv" },
+        { name: "History Channel", url: "https://new.m3u8.one/history/tracks-v1a1/mono.m3u8", type: "Documentários", icon: "book" },
+        { name: "Cartoon Network", url: "https://new.m3u8.one/cartoon/tracks-v1a1/mono.m3u8", type: "Infantil", icon: "child" },
+        { name: "Disney Channel", url: "https://new.m3u8.one/disneychannel/tracks-v1a1/mono.m3u8", type: "Infantil", icon: "child" },
+        { name: "Nick Jr", url: "https://new.m3u8.one/nickjr/tracks-v1a1/mono.m3u8", type: "Infantil", icon: "child" },
+        { name: "HBO Plus", url: "https://new.m3u8.one/hboplus/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "HBO Family", url: "https://new.m3u8.one/hbofamily/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "HBO 2", url: "https://new.m3u8.one/hbo2/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "HBO", url: "https://new.m3u8.one/hbo/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "TNT", url: "https://stream.m3u8.one/tnt/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "film" },
+        { name: "Star Channel", url: "https://new.m3u8.one/starchannel/tracks-v1a1/mono.m3u8", type: "Filmes", icon: "star" }
+    ];
+
+    channelGrid.innerHTML = '';
+    channels.forEach(channel => {
+        const channelCard = document.createElement('div');
+        channelCard.className = 'channel-card';
+        channelCard.innerHTML = `
+            <div class="channel-icon">
+                <i class="fas fa-${channel.icon}"></i>
+            </div>
+            <h3>${channel.name}</h3>
+            <p>${channel.type}</p>
+        `;
+        channelCard.onclick = () => playChannel(channel);
+        channelGrid.appendChild(channelCard);
+    });
+}
+
+function playChannel(channel) {
+    const video = document.getElementById('video');
+    document.getElementById('loading').style.display = 'flex';
+    
+    if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(channel.url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            video.play();
+            document.getElementById('loading').style.display = 'none';
+        });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = channel.url;
+        video.addEventListener('loadedmetadata', function() {
+            video.play();
+            document.getElementById('loading').style.display = 'none';
+        });
+    }
+}
+
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const channelCards = document.querySelectorAll('.channel-card');
+    
+    channelCards.forEach(card => {
+        const channelName = card.querySelector('h3').textContent.toLowerCase();
+        const channelType = card.querySelector('p').textContent.toLowerCase();
+        
+        if (channelName.includes(searchTerm) || channelType.includes(searchTerm)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+});
+
+// Adiciona funcionalidade aos botões de categoria
+document.querySelectorAll('.category-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        const category = this.textContent;
+        const channelCards = document.querySelectorAll('.channel-card');
+        
+        channelCards.forEach(card => {
+            const channelType = card.querySelector('p').textContent;
+            if (category === 'Todos' || channelType === category) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
